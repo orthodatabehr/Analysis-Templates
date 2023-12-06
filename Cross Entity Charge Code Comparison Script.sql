@@ -1,11 +1,12 @@
-
-
-
+/* CROSS ENTITY CHARGE CODE COMPARISON SCRIPT
+This script will summarize all charge codes and compare its utilization across all entities.
+The goal is to determine which charge codes have the highest variation amongst entities within a hospital system. 
+*/
 
 /* Parameters
 We want to start off setting appropriate parameters for encounter selection. 
 Source System --> we want to focus on hospital billing source systems only.
-Fiscal Year --> 
+Fiscal Year --> replace _FISCALYEAR_
 Months --> (optional depending on which months the client has published costing)
 Use the query below to determine which months mark the start and end of their fiscal year. "FiscalMonthCode" = 1 is the first month of the fiscal year. 
 	select * from fw.dimfiscalmonth
@@ -22,8 +23,7 @@ where SPHSourceSystemCategoryID = 1
 
 drop table if exists #fiscalyear
 create table #fiscalyear (fyear int)
-insert into #fiscalyear (fyear) values (2023)		-- Change the Fiscal Year as you see fit.
-
+insert into #fiscalyear (fyear) values (_FISCALYEAR_)		-- Change the Fiscal Year as you see fit.
 
 /* Client Specific Parameters
 Run the query below to determine which table contains the appropriate service lines to join to. 
@@ -34,7 +34,7 @@ Make sure to change the configuration year to the correct year.
 	from cci.configuration config
 		inner join dbo.ScoreDimension dim on dim.DimensionGUID = config.ServiceLineDimensionGUID
 	where 1=1
-		and config.Name = 'FY2024'		------ Change the configuration year here
+		and config.Name = '_CONFIGYEAR_'		-- Change the configuration year here
 
 After determining the appropriate service line, store the service line table in a temp table for easier access later. 
 */
@@ -44,8 +44,7 @@ select *
 into #serviceline
 from fw.DimServiceLine2
 
-
--- Create temp table based on PES table and incorporating parameters from above.
+/* Create temp table based on encounter summary table and incorporating parameters from above. */
 drop table if exists #enc
 select 
 	e.EncounterID
@@ -69,7 +68,7 @@ where 1=1
 	and ss.SourceSystemID in (select * from #sourcesystem)
 	and e.IsGreaterThanZeroCharge = 'Yes'
 
--- Create temp table based on PBL tied in with the encounter table above.
+/* Create temp table based on the billing detail table tied in with the encounter table above. */
 drop table if exists #bill
 select 
 	e.*
@@ -97,15 +96,21 @@ group by
 	, cc.[Rollup]
 	, cc.Name
 
+/* Summary billing detail costs at an encounter level */
 drop table if exists #bill_enc
 select distinct EncounterID, entity, patient_setting, service_line, sum(VDC) VDC 
 into #bill_enc
 from #bill 
 group by EncounterID, entity, patient_setting, service_line
 
-		select top 10 * from #bill_enc
-		select distinct entity, patient_setting, service_line, count(distinct EncounterID) cases, sum(VDC) VDC from #bill_enc group by entity, patient_setting, service_line order by VDC desc
+/* Sanity Check to see if columns and cost details are appropriate	
+	select top 10 * from #bill_enc
+*/
 
+/* Create temp table that tracks updates by entity.
+The goal of the next sections is to iterate through all entities within an organization and compare all charge codes at the entity of interest with the same charge code at other entities. 
+For example, how much does knee implant A cost at Hospital A vs Hospitals B, C, D, etc.
+*/
 drop table if exists #entity_update_list
 select top 100
 	entity
@@ -126,8 +131,7 @@ order by
 	VDC desc
 	, cases desc
 
-	select  * from #entity_update_list order by VDC desc
-
+/* Create output tables for charge codes unique to entities of interest, and charge codes that overlap across multiple entities. */
 drop table if exists #entity_unique_charge_codes, #entity_comparison_charge_codes
 create table #entity_unique_charge_codes (
 		charge_codes_unique_to_entity_of_interest varchar(1000)
@@ -163,6 +167,10 @@ create table #entity_comparison_charge_codes (
 		, AVG_Other_entity_tot_cases int
 		)
 
+/* 
+This while loop serves the function of a for loop in SQL. 
+As long as there are rows with isUpdated = 0, then the loop will execute.
+*/
 while exists (select * from #entity_update_list where isUpdated = 0)
 begin
 
@@ -175,6 +183,7 @@ begin
 	from #entity_update_list
 	where isUpdated = 0
 
+	/* EOI = Entity of Interest */
 	drop table if exists #EOI_case_volume
 	select 
 		count(distinct encounterid) cases 
@@ -423,9 +432,6 @@ begin
 
 end 
 
-
--- Copy and Paste the below outputs into excel in separate sheets. 
+-- Copy and Paste the below outputs into excel for Tableau. 
 	select * from #entity_unique_charge_codes order by EOI_VDC desc
 	select * from #entity_comparison_charge_codes order by ImpactDollars desc
-
-	select * from #entity_comparison_charge_codes where Entity_of_Interest like '%3570%'
