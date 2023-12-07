@@ -1,3 +1,7 @@
+'''
+This is a data cleaning template for UNOS data specific to primary liver transplantation.
+'''
+
 import pandas as pd
 import numpy as np
 
