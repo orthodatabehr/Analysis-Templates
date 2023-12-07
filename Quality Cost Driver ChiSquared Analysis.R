@@ -1,6 +1,8 @@
+# This file combines with the Quality Association Script to perform chi-squared analysis on the output and determine if a specific cost driver is significantly associated with the quality event of interest.
+
 #pull in Client Data file from SQL output
 library(readxl)
-raw_data <- read_excel("Library/CloudStorage/OneDrive-StrataDecisionTechnology/StrataJazz Info/Example Client File.xlsx")
+raw_data <- read_excel("ClientDataFile.xlsx")
 View(Example_Client_File)
 
 # Install relevant packages for data cleaning and transformations
@@ -13,7 +15,7 @@ library(stringr)
 install.packages("tidyverse")
 library(tidyverse)
 
-# Remove columns
+# Remove columns for client de-identification
 drops <- c('Entity','Patient Population','AttendPhysicianName')
 new_data <- raw_data[ , !(names(raw_data) %in% drops)]
 
