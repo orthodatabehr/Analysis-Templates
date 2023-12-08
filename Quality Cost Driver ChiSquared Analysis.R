@@ -1,4 +1,4 @@
-# This file combines with the Quality Association Script to perform chi-squared analysis on the output and determine if a specific cost driver is significantly associated with the quality event of interest.
+# This file combines with the Quality Association Script to perform chi-squared analysis on the output and determine if a specific cost driver is significantly associated with the quality event of interest. This specific example looks at the quality event of 'Ventilator-Associated Pneumonia'. 
 
 #pull in Client Data file from SQL output
 library(readxl)
@@ -14,6 +14,8 @@ install.packages("stringr")
 library(stringr)
 install.packages("tidyverse")
 library(tidyverse)
+install.packages("ggstatsplot")
+library(ggstatsplot)
 
 # Remove columns for client de-identification
 drops <- c('Entity','Patient Population','AttendPhysicianName')
@@ -25,146 +27,126 @@ new_data$VDC <- as.numeric(new_data$VDC)
 new_data$EncounterID %>%  as.character(new_data$EncounterID)
 new_data <- new_data[new_data$VDC > 0,]
 
-# Create separate tibbles for Ventilator-Associated Pneumonia Patients and Patients without this complication.
-PNA_data <- new_data[new_data$QVI != 'Control',]
-Control_data <- new_data[new_data$QVI == 'Control',]
+# Chi Squared Test Plot demonstrating association between quality event occurrence and cost drivers. 
+ggbarstats(
+  data = new_data,
+  x = QVI,
+  y = CostDriver
+) +
+  labs(caption = NULL) # remove caption
 
-PNASummary <-
-  PNA_data %>% 
-  group_by(CostDriver, DateOfService) %>% 
-  summarize(pna_cases = n_distinct(EncounterID))
-head(PNASummary)
+# From this graph, the Cost Drivers that are significantly associated (p < 0.05) with the quality event are:
+# Blood, Cardiovascular, Clinic, Dialysis, Emergency Room, Laboratory, Other Diagnostic Services, Pharmacy, Respiratory Services, Supplies, Therapeutic Services 
+# We want to create contingency tables based on the above cost drivers now using Date of Service and quality event status. 
 
-ControlSummary <-
-  Control_data %>% 
-  group_by(CostDriver, DateOfService) %>% 
-  summarize(control_cases = n_distinct(EncounterID))
-head(ControlSummary)
+Blood_Data <- new_data[new_data$CostDriver == 'Blood',]
+Card_Data <- new_data[new_data$CostDriver == 'Cardiovascular',]
+Clinic_Data <- new_data[new_data$CostDriver == 'Clinic',]
+Dialysis_Data <- new_data[new_data$CostDriver == 'Dialysis',]
+ER_Data <- new_data[new_data$CostDriver == 'Emergency Room',]
+Lab_Data <- new_data[new_data$CostDriver == 'Laboratory',]
+OthDx_Data <- new_data[new_data$CostDriver == 'Other Diagnostic Services',]
+Pharm_Data <- new_data[new_data$CostDriver == 'Pharmacy',]
+Resp_Data <- new_data[new_data$CostDriver == 'Respiratory Services',]
+Supply_Data <- new_data[new_data$CostDriver == 'Supplies',]
+Therapy_Data <- new_data[new_data$CostDriver == 'Therapeutic Services',]
 
-# Combine above 2 tibbles into single dataframe for Chi-Squared Test of Independence 
-CombinedSummary <- 
-  PNASummary %>% 
-  inner_join(ControlSummary, by = c('CostDriver', 'DateOfService'))
-CombinedSummary$CostDriver_DOS <- str_c(CombinedSummary$CostDriver, ' ', CombinedSummary$DateOfService)
-CombinedSummary <- CombinedSummary %>% relocate(CostDriver_DOS) %>% 
-CombinedSummary <- CombinedSummary[, c("CostDriver_DOS","pna_cases","control_cases")]
+# Now generate Chi Squared Plots for each of these significant cost drivers with Data of Ventilator Placement as other breakdown. 
+Blood_Graph <- ggbarstats(
+  data = Blood_Data,
+  x = QVI,
+  y = DateOfService,
+  title = 'Blood Interventions between Quality Event cases and Control cases by Date of Ventilator Placement'
+  ) +
+    labs(caption = NULL, subtitle = NULL)
+Blood_Graph
 
-CombinedSummary <- data.frame(CombinedSummary,row.names = 1)
-head(CombinedSummary)
+Card_Graph <- ggbarstats(
+  data = Card_Data,
+  x = QVI,
+  y = DateOfService,
+  title = 'Cardiovascular Interventions between Quality Event cases and Control cases by Date of Ventilator Placement'
+) +
+  labs(caption = NULL, subtitle = NULL)
+Card_Graph
 
+Clinic_Graph <- ggbarstats(
+  data = Clinic_Data,
+  x = QVI,
+  y = DateOfService,
+  title = 'Clinic Interventions between Quality Event cases and Control cases by Date of Ventilator Placement'
+) +
+  labs(caption = NULL, subtitle = NULL)
+Clinic_Graph
 
-# Perform individual Chi-Squared Test of Independence on each Cost Driver broken out by Date of Service 
-install.packages("corrplot")
-library(corrplot)
+Dialysis_Graph <- ggbarstats(
+  data = Dialysis_Data,
+  x = QVI,
+  y = DateOfService,
+  title = 'Dialysis Interventions between Quality Event cases and Control cases by Date of Ventilator Placement'
+) +
+  labs(caption = NULL, subtitle = NULL)
+Dialysis_Graph
 
-anes_rows <- c('Anesthesia and Recovery After Vent','Anesthesia and Recovery Before Vent','Anesthesia and Recovery Day of Vent')
-anesthesia <- CombinedSummary[rownames(CombinedSummary) %in% anes_rows,]
-anes_chisq <- chisq.test(anesthesia)
-anes_chisq$p.value
-# p-value = 0.325
-corrplot(anes_chisq$residual, is.corr = FALSE)
+ER_Graph <- ggbarstats(
+  data = ER_Data,
+  x = QVI,
+  y = DateOfService,
+  title = 'ER Interventions between Quality Event cases and Control cases by Date of Ventilator Placement'
+) +
+  labs(caption = NULL, subtitle = NULL)
+ER_Graph
 
-blood_rows <- c('Blood After Vent','Blood Before Vent','Blood Day of Vent')
-blood <- CombinedSummary[rownames(CombinedSummary) %in% blood_rows,]
-blood_chisq <- chisq.test(blood)
-blood_chisq$p.value
-# p-value = 0.643
-corrplot(blood_chisq$residual, is.corr = FALSE)
+Lab_Graph <- ggbarstats(
+  data = Lab_Data,
+  x = QVI,
+  y = DateOfService,
+  title = 'Lab Interventions between Quality Event cases and Control cases by Date of Ventilator Placement'
+) +
+  labs(caption = NULL, subtitle = NULL)
+Lab_Graph
 
-card_rows <- c('Cardiovascular After Vent','Cardiovascular Before Vent','Cardiovascular Day of Vent')
-card <- CombinedSummary[rownames(CombinedSummary) %in% card_rows,]
-card_chisq <- chisq.test(card)
-card_chisq$p.value
-# p-value = 0.010
-corrplot(card_chisq$residual, is.corr = FALSE)
+OthDx_Graph <- ggbarstats(
+  data = OthDx_Data,
+  x = QVI,
+  y = DateOfService,
+  title = 'Other Diagnostic Interventions between Quality Event cases and Control cases by Date of Ventilator Placement'
+) +
+  labs(caption = NULL, subtitle = NULL)
+OthDx_Graph
 
-clinic_rows <- c('Clinic After Vent','Clinic Before Vent','Clinic Day of Vent')
-clinic <- CombinedSummary[rownames(CombinedSummary) %in% clinic_rows,]
-clinic_chisq <- chisq.test(clinic)
-clinic_chisq$p.value
-# p-value = 0.300
-corrplot(clinic_chisq$residual, is.corr = FALSE)
+Pharm_Graph <- ggbarstats(
+  data = Pharm_Data,
+  x = QVI,
+  y = DateOfService,
+  title = 'Pharmacy Interventions between Quality Event cases and Control cases by Date of Ventilator Placement'
+) +
+  labs(caption = NULL, subtitle = NULL)
+Pharm_Graph
 
-dial_rows <- c('Dialysis After Vent','Dialysis Before Vent','Dialysis Day of Vent')
-dialysis <- CombinedSummary[rownames(CombinedSummary) %in% dial_rows,]
-dial_chisq <- chisq.test(dialysis)
-dial_chisq$p.value
-# p-value = 0.598
-corrplot(dial_chisq$residual, is.corr = FALSE)
+Resp_Graph <- ggbarstats(
+  data = Resp_Data,
+  x = QVI,
+  y = DateOfService,
+  title = 'Respiratory Interventions between Quality Event cases and Control cases by Date of Ventilator Placement'
+) +
+  labs(caption = NULL, subtitle = NULL)
+Resp_Graph
 
-ER_rows <- c('Emergency Room After Vent','Emergency Room Before Vent','Emergency Room Day of Vent')
-ER <- CombinedSummary[rownames(CombinedSummary) %in% ER_rows,]
-ER_chisq <- chisq.test(ER)
-ER_chisq$p.value
-# p-value = 1.111143e-08
-corrplot(ER_chisq$residual, is.corr = FALSE)
+Supply_Graph <- ggbarstats(
+  data = Supply_Data,
+  x = QVI,
+  y = DateOfService,
+  title = 'Supply Interventions between Quality Event cases and Control cases by Date of Ventilator Placement'
+) +
+  labs(caption = NULL, subtitle = NULL)
+Supply_Graph
 
-endo_rows <- c('Endoscopy After Vent','Endoscopy Before Vent','Endoscopy Day of Vent')
-endo <- CombinedSummary[rownames(CombinedSummary) %in% endo_rows,]
-endo_chisq <- chisq.test(endo)
-endo_chisq$p.value
-# p-value = 0.841
-corrplot(endo_chisq$residual, is.corr = FALSE)
-
-img_rows <- c('Imaging After Vent','Imaging Before Vent','Imaging Day of Vent')
-img <- CombinedSummary[rownames(CombinedSummary) %in% img_rows,]
-img_chisq <- chisq.test(img)
-img_chisq$p.value
-# p-value = 0.009
-corrplot(img_chisq$residual, is.corr = FALSE)
-
-LOS_rows <- c('LOS After Vent','LOS Before Vent','LOS Day of Vent')
-LOS <- CombinedSummary[rownames(CombinedSummary) %in% LOS_rows,]
-LOS_chisq <- chisq.test(LOS)
-LOS_chisq$p.value
-# p-value = 0.005
-corrplot(LOS_chisq$residual, is.corr = FALSE)
-
-lab_rows <- c('Laboratory After Vent','Laboratory Before Vent','Laboratory Day of Vent')
-lab <- CombinedSummary[rownames(CombinedSummary) %in% lab_rows,]
-lab_chisq <- chisq.test(lab)
-lab_chisq$p.value
-# p-value = 0.006
-corrplot(lab_chisq$residual, is.corr = FALSE)
-
-OR_rows <- c('OR Time After Vent','OR Time Before Vent','OR Time Day of Vent')
-OR <- CombinedSummary[rownames(CombinedSummary) %in% OR_rows,]
-OR_chisq <- chisq.test(OR)
-OR_chisq$p.value
-# p-value = 0.611
-corrplot(OR_chisq$residual, is.corr = FALSE)
-
-othDX_rows <- c('Other Diagnostic Services After Vent','Other Diagnostic Services Before Vent','Other Diagnostic Services Day of Vent')
-othDX <- CombinedSummary[rownames(CombinedSummary) %in% othDX_rows,]
-othDX_chisq <- chisq.test(othDX)
-othDX_chisq$p.value
-# p-value = 0.287
-corrplot(othDX_chisq$residual, is.corr = FALSE)
-
-pharm_rows <- c('Pharmacy After Vent','Pharmacy Before Vent','Pharmacy Day of Vent')
-pharm <- CombinedSummary[rownames(CombinedSummary) %in% pharm_rows,]
-pharm_chisq <- chisq.test(pharm)
-pharm_chisq$p.value
-# p-value = 0.007
-corrplot(pharm_chisq$residual, is.corr = FALSE)
-
-resp_rows <- c('Respiratory Services After Vent','Respiratory Services Before Vent','Respiratory Services Day of Vent')
-resp <- CombinedSummary[rownames(CombinedSummary) %in% resp_rows,]
-resp_chisq <- chisq.test(resp)
-resp_chisq$p.value
-# p-value = 0.010
-corrplot(resp_chisq$residual, is.corr = FALSE)
-
-supplies_rows <- c('Supplies After Vent','Supplies Before Vent','Supplies Day of Vent')
-supplies <- CombinedSummary[rownames(CombinedSummary) %in% supplies_rows,]
-supplies_chisq <- chisq.test(supplies)
-supplies_chisq$p.value
-# p-value = 0.024
-corrplot(supplies_chisq$residual, is.corr = FALSE)
-
-therapy_rows <- c('Therapeutic Services After Vent','Therapeutic Services Before Vent','Therapeutic Services Day of Vent')
-therapy <- CombinedSummary[rownames(CombinedSummary) %in% therapy_rows,]
-therapy_chisq <- chisq.test(therapy)
-therapy_chisq$p.value
-# p-value = 0.244
-corrplot(therapy_chisq$residual, is.corr = FALSE)
+Therapy_Graph <- ggbarstats(
+  data = Therapy_Data,
+  x = QVI,
+  y = DateOfService,
+  title = 'Therapy Interventions between Quality Event cases and Control cases by Date of Ventilator Placement'
+) +
+  labs(caption = NULL, subtitle = NULL)
+Therapy_Graph
