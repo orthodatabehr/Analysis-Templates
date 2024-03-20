@@ -1,6 +1,6 @@
-## Analysis-Templates
+### Analysis-Templates
 
-OPPORTUNITY SCREENING TEMPLATE (SQL) = This script helps identify the use of a specific charge code within a client database to calculate margin-improvement opportunity. This script can be scaled based on the number of opportunities that the user is interested in examining. 
+# OPPORTUNITY SCREENING TEMPLATE (SQL) = This script helps identify the use of a specific charge code within a client database to calculate margin-improvement opportunity. This script can be scaled based on the number of opportunities that the user is interested in examining. 
 
 CPT CODE OPPORTUNITY ANALYSIS (SQL) = This script is an in-depth exploration of potential redundant usage of a particular CPT code within a client database. This is commonly performed for imaging and laboratory tests to determine if too many tests are performed within a same day or during a single patient stay. 
 
