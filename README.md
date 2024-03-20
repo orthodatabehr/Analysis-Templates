@@ -1,4 +1,4 @@
-# Analysis-Templates
+## Analysis-Templates
 
 OPPORTUNITY SCREENING TEMPLATE (SQL) = This script helps identify the use of a specific charge code within a client database to calculate margin-improvement opportunity. This script can be scaled based on the number of opportunities that the user is interested in examining. 
 
